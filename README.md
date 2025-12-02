@@ -89,3 +89,17 @@
 - Exporters sur les autres serveurs (node_exporter)
 
 - Alertes (mail optionnel)
+
+##
+
+# 🌐 Schéma réseau (VirtualBox)
+
+Réseau interne “LAN-ENTREPRISE” : 192.168.10.0/24
+
+| Machine        | IP            |
+| -------------- | ------------- |
+| SRV-CORE       | 192.168.10.10 |
+| SRV-DOCKER     | 192.168.10.11 |
+| SRV-BACKUP     | 192.168.10.12 |
+| SRV-MONITORING | 192.168.10.13 |
+| CLIENT         | 192.168.10.20 |
