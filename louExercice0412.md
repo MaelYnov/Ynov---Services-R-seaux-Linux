@@ -426,3 +426,160 @@ Compression gzip
 Rotation 30 jours
 ✔ Simulation d’une perte de données
 ✔ Restauration complète et vérifiée
+
+### Exercice 4 ###
+
+✅ 1. Installation de BorgBackup
+
+Sur Debian/Ubuntu :
+```
+sudo apt update
+sudo apt install borgbackup -y
+```
+
+Vérifie l’installation :
+```
+borg --version
+```
+✅ 2. Initialisation d’un dépôt chiffré
+
+On va créer un dépôt dans /backup/borg_repo. Borg permet le chiffrement intégré.
+```
+sudo mkdir -p /backup/borg_repo
+sudo borg init --encryption=repokey /backup/borg_repo
+```
+
+--encryption=repokey → chiffrement avec une clé stockée dans le dépôt (plus simple que passphrase seule)
+
+Borg va te demander un mot de passe pour le chiffrement : note-le bien, tu en auras besoin pour la restauration.
+
+mdp : aze
+
+Vérifie le dépôt :
+```
+borg list /backup/borg_repo
+```
+
+Pour l’instant il sera vide.
+
+✅ 3. Créer des sauvegardes quotidiennes pendant 3 jours
+
+On va créer un dossier de test à sauvegarder, par exemple /home/lou/test_borg :
+```
+mkdir -p ~/test_borg
+echo "Version 1" > ~/test_borg/fichier.txt
+```
+Sauvegarde jour 1 :
+```
+borg create --stats /backup/borg_repo::jour1 ~/test_borg
+```
+->
+```
+ou@client3:~/Desktop$ sudo borg create --stats /backup/borg_repo::jour1 ~/test_borg
+Enter passphrase for key /backup/borg_repo: 
+------------------------------------------------------------------------------
+Repository: /backup/borg_repo
+Archive name: jour1
+Archive fingerprint: fd309f9803df168461228a455524b0a839c55df0a39f9eba13884479a2c1b470
+Time (start): Thu, 2025-12-04 12:33:33
+Time (end):   Thu, 2025-12-04 12:33:33
+Duration: 0.02 seconds
+Number of files: 1
+Utilization of max. archive size: 0%
+------------------------------------------------------------------------------
+                       Original size      Compressed size    Deduplicated size
+This archive:                  527 B                578 B                578 B
+All archives:                   10 B                 53 B                817 B
+
+                       Unique chunks         Total chunks
+Chunk index:                       3                    3
+------------------------------------------------------------------------------
+```
+Ajoute une modification pour jour 2 :
+```
+echo "Version 2" > ~/test_borg/fichier.txt
+borg create --stats /backup/borg_repo::jour2 ~/test_borg
+```
+
+Ajoute une modification pour jour 3 :
+```
+echo "Version 3" > ~/test_borg/fichier.txt
+borg create --stats /backup/borg_repo::jour3 ~/test_borg
+```
+
+--stats → affiche les statistiques, dont la taille sauvegardée et la déduplication
+
+✅ 4. Observer la déduplication
+
+Liste les archives dans le dépôt :
+```
+borg list /backup/borg_repo
+```
+->
+```
+lou@client3:~/Desktop$ sudo borg list /backup/borg_repo
+Enter passphrase for key /backup/borg_repo: 
+jour1                                Thu, 2025-12-04 12:33:33 [fd309f9803df168461228a455524b0a839c55df0a39f9eba13884479a2c1b470]
+jour2                                Thu, 2025-12-04 12:36:07 [f8cd17e644bc6ba70c172e40f1015aa8c124348c519fff4ec7d87444d964a4c0]
+jour3                                Thu, 2025-12-04 12:36:44 [cbc3a31db93ef1af0e0f13073813710e34f4dfc5c8b9bde6ef6ad944d50c4f3c]
+```
+Pour voir les tailles et l’espace économisé :
+```
+borg info /backup/borg_repo
+```
+-> 
+```
+lou@client3:~/Desktop$ sudo borg info /backup/borg_repo
+Enter passphrase for key /backup/borg_repo: 
+Repository ID: 1c1cb28b228c08c9a278ac9d16dd450cea5529009ed41a6b1e8dc72dd46613e8
+Location: /backup/borg_repo
+Encrypted: Yes (repokey)
+Cache: /root/.cache/borg/1c1cb28b228c08c9a278ac9d16dd450cea5529009ed41a6b1e8dc72dd46613e8
+Security dir: /root/.config/borg/security/1c1cb28b228c08c9a278ac9d16dd450cea5529009ed41a6b1e8dc72dd46613e8
+------------------------------------------------------------------------------
+                       Original size      Compressed size    Deduplicated size
+All archives:                   30 B                159 B              2.48 kB
+
+                       Unique chunks         Total chunks
+Chunk index:                       9                    9
+```
+
+Tu verras que les données inchangées ne sont pas dupliquées, Borg utilise la déduplication par blocs.
+
+✅ 5. Restaurer une version spécifique d’un fichier
+
+Supposons qu’on veuille restaurer la version du jour 2 :
+```
+borg extract /backup/borg_repo::jour2 ~/test_borg/fichier.txt
+```
+
+Vérifie :
+```
+cat ~/test_borg/fichier.txt
+# Devrait afficher "Version 2"
+```
+
+Si tu veux restaurer tous les fichiers de l’archive :
+```
+borg extract /backup/borg_repo::jour2
+```
+
+->
+```
+lou@client3:~/Desktop$ sudo borg extract /backup/borg_repo::jour2 ~/test_borg/fichier.txt
+Enter passphrase for key /backup/borg_repo: 
+lou@client3:~/Desktop$ cat ~/test_borg/fichier.txt
+Version 3
+```
+
+✅ 6. Bonus : Automatiser les sauvegardes quotidiennes avec cron
+
+Édite le cron de ton utilisateur :
+```
+crontab -e
+```
+
+Ajoute par exemple pour 4h du matin :
+```
+0 4 * * * borg create --stats /backup/borg_repo::$(date +\%Y-\%m-\%d) ~/test_b
+```
