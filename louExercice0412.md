@@ -427,7 +427,7 @@ Rotation 30 jours
 ✔ Simulation d’une perte de données
 ✔ Restauration complète et vérifiée
 
-### Exercice 4 ###
+### Exercice 3 ###
 
 ✅ 1. Installation de BorgBackup
 
@@ -583,3 +583,133 @@ Ajoute par exemple pour 4h du matin :
 ```
 0 4 * * * borg create --stats /backup/borg_repo::$(date +\%Y-\%m-\%d) ~/test_b
 ```
+
+### Exercice 4 ###
+
+🟦 1) Inventaire des systèmes et des données
+
+Mon infrastructure est composée de plusieurs machines virtuelles sous Ubuntu.
+
+| Machine     | Rôle                  | Données sauvegardées | Dossiers        |
+| ----------- | --------------------- | -------------------- | --------------- |
+| VM-Web      | Serveur web Apache    | Site web             | `/var/www/html` |
+| VM-DB       | Serveur base MySQL    | Bases de données     | MySQL           |
+| VM-Backup   | Serveur de sauvegarde | Sauvegardes          | `/backup`       |
+| Poste admin | Administration        | Scripts              | `/home`         |
+
+Données critiques :
+- Fichiers du site web
+- Bases de données MySQL
+- Comptes utilisateurs Linux
+- Fichiers de configuration système
+
+🎯 Objectifs :
+- RPO : 24 heures
+- RTO : 2 heures
+
+🟧 2) Procédures de sauvegarde
+✅ Création du dossier de sauvegarde
+```
+sudo mkdir -p /backup
+```
+✅ Sauvegarde des fichiers système et du site web
+```
+sudo rsync -av --delete /home /var/www /etc /backup/
+```
+
+Cette commande permet de sauvegarder :
+- les utilisateurs
+- le site web
+- la configuration système
+
+✅ Sauvegarde de la base de données MySQL
+```
+sudo mysqldump -u root -p --all-databases | gzip > /backup/mysql.sql.gz
+```
+✅ Automatisation tous les jours avec CRON
+```
+crontab -e
+```
+
+Puis ajout :
+```
+0 2 * * * rsync -av --delete /home /var/www /etc /backup/
+0 3 * * * mysqldump -u root -pPASSWORD --all-databases | gzip > /backup/mysql.sql.gz
+```
+
+🟧 3) Procédures de restauration
+🔴 Restauration du site web
+```
+sudo rsync -av /backup/var/www/ /var/www/
+
+sudo systemctl restart apache2
+```
+🔴 Restauration des utilisateurs
+```
+sudo rsync -av /backup/home/ /home/
+```
+🔴 Restauration complète de la base MySQL
+```
+gunzip < /backup/mysql.sql.gz | sudo mysql -u root -p
+```
+🔴 Restauration complète après attaque ou crash
+```
+sudo systemctl stop apache2 mysql
+sudo rsync -av --delete /backup/ /
+sudo reboot
+```
+
+
+🟨 4) Tests à effectuer
+✅ Test 1 : Suppression du site puis restauration
+```
+sudo rm /var/www/html/index.html
+```
+
+Puis :
+```
+sudo rsync -av /backup/var/www/html/index.html /var/www/html/
+```
+
+✅ Le site fonctionne → test validé
+
+✅ Test 2 : Suppression d’une base MySQL
+```
+sudo mysql -u root -p
+DROP DATABASE test;
+EXIT
+```
+
+Puis restauration :
+```
+gunzip < /backup/mysql.sql.gz | mysql -u root -p
+```
+
+✅ La base est restaurée
+
+✅ Test 3 : Vérification de la présence des sauvegardes
+```
+ls /backup
+```
+🟨 5) Contacts et responsabilités
+| Rôle                   | Nom  | Mission                    |
+| ---------------------- | ---- | -------------------------- |
+| Administrateur système | Moi  | Sauvegarde et restauration |
+| Responsable sécurité   | Prof | Analyse incident           |
+| Responsable IT         | Prof | Validation finale          |
+
+
+✅ Conclusion
+
+- Ce Plan de Reprise d’Activité me permet de :
+- Protéger mes données
+- Restaurer un site après une panne
+- Restaurer une base MySQL après une corruption
+- Tester régulièrement les sauvegardes
+
+J’utilise :
+- rsync pour les fichiers
+- mysqldump pour MySQL
+- cron pour l’automatisation
+
+Une sauvegarde est considérée comme valide uniquement après un test de restauration réussi.
