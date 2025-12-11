@@ -53,9 +53,8 @@ L’utilisation de VM Ubuntu combine sécurité 🔒, flexibilité 🛠️, repr
 
 ### Plan de structures 
 ```
-VM1 – SRV-CORE (Serveur principal)
+🖥️ VM1 – SRV-CORE (Serveur principal)
 
-Debian 13
 
 Rôles :
 
@@ -77,7 +76,6 @@ Ports :
 
 🖥️ VM2 – SRV-DOCKER
 
-Debian 13
 
 Rôles :
 
@@ -95,7 +93,6 @@ Déploiement “une commande” = docker compose up -d
 
 🖥️ VM3 – SRV-BACKUP
 
-Debian 13
 
 Rôles :
 
@@ -105,9 +102,17 @@ BorgBackup Server / Rsync server
 
 Restauration automatisée
 
-🖥️ VM4 – SRV-MONITORING
+🖥️ VM4 – SRV-FIREWALL
 
-Debian 13
+
+Rôles :
+
+Router/Pare-feu
+
+
+
+🖥️ VM5 – SRV-MONITORING
+
 
 Rôles :
 
