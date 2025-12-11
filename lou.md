@@ -1,42 +1,55 @@
 # Jeune prise de note 
 
-### 🌱 1. Pourquoi Debian est un excellent choix pour ton projet
+### Pourquoi utiliser des VM Ubuntu pour ce projet 💻🖥️
 
-Debian est l’un des systèmes Linux les plus utilisés dans le monde pour des infrastructures serveur.
-Dans un contexte d’étudiant et de projet réseau, Debian apporte plusieurs avantages très concrets :
+L’utilisation de machines virtuelles (VM) Ubuntu présente de nombreux avantages pour un projet de sauvegarde et restauration, tant pour l’apprentissage que pour des environnements de test ou de production. Voici les principaux points :
 
-✔️ Stable
+1. Isolation et sécurité 🔒
 
-Debian privilégie la stabilité plutôt que les nouveautés toutes fraîches.
-Résultat : très peu de bugs, comportement prévisible = idéal pour un projet académique qui doit fonctionner de manière fiable.
+- Chaque VM fonctionne comme un système indépendant. Une erreur ou une mauvaise manipulation dans une VM n’affecte pas l’hôte ni les autres machines virtuelles.
 
-✔️ Documenté partout
+- Cela permet de tester des scripts de sauvegarde et de restauration sans risquer de compromettre le système principal.
 
-Comme c’est l’un des OS les plus utilisés dans les cours d’administration système, tu trouveras des tutoriels, guides, forums, docs officielles partout.
-C’est très utile quand tu bloques à une étape.
+2. Reproductibilité et portabilité 🔄✈️
 
-✔️ Paquets très propres
+- Les VM peuvent être clonées, sauvegardées et restaurées facilement, ce qui facilite la réplication d’environnements pour les exercices pratiques.
 
-Les services que tu vas déployer (DNS, nginx, Apache, PostgreSQL, Docker, etc.) sont très bien packagés dans Debian.
-L'installation est simple, standardisée, et sans surprise.
+- Les configurations sont portables : une VM Ubuntu configurée sur un PC peut être déplacée vers un autre ordinateur ou un serveur sans modification majeure.
 
-✔️ Idéal pour l’automatisation
+3. Contrôle complet de l’environnement ⚙️
 
-Ansible, scripts Bash, cloud-init… Tous ces outils fonctionnent parfaitement sur Debian.
-Et il y a moins de variations entre versions que sur Ubuntu.
+- Ubuntu offre un environnement Linux standard, avec accès complet au terminal, aux outils systèmes et aux permissions root.
 
-✔️ Très utilisé en entreprise
+- Cela permet de travailler avec tous les outils de sauvegarde étudiés : rsync, tar, BorgBackup, Restic, Duplicity, mysqldump, etc.
 
-C’est exactement ce qui est visé dans ton projet : “vous êtes administrateur système dans une entreprise”.
-Debian est un choix professionnel, crédible et aligné avec ce qui se fait dans la vraie vie.
+- Nous pouvons ainsi expérimenter tous les niveaux de sauvegarde (fichiers, bloc, image, bases de données) sans limitation.
 
-✔️ Léger
+4. Flexibilité pour la simulation de scénarios 🛠️🎭
 
-Pour VirtualBox c’est parfait : peu gourmand en ressources → tu peux lancer plusieurs VMs sans exploser la RAM.
+- Les VM permettent de simuler des pannes, des corruptions de fichiers, des ransomwares ou des pertes de données de manière contrôlée.
 
-👉 Bref : Debian c’est stable, simple, documenté et pro.
-Pour un projet formation → parfait.
+- Cela rend possible la mise en place et le test de plans de restauration (DRP) sans conséquences réelles sur des systèmes de production.
 
+5. Économie de ressources et gestion simplifiée 💾📦
+
+- Plusieurs VM Ubuntu peuvent tourner sur un seul PC grâce à la virtualisation, ce qui permet de réaliser un laboratoire complet de sauvegarde multi-sites ou multi-niveaux sans multiplier les machines physiques.
+
+- Les instantanés (snapshots) des VM permettent de revenir en arrière rapidement après un test, réduisant le temps nécessaire pour réinitialiser un environnement.
+
+6. Compatibilité et documentation abondante 📚🌐
+
+- Ubuntu est largement utilisé en entreprise et en formation, ce qui facilite la recherche de documentation et le support communautaire.
+
+- Les outils de sauvegarde open source et propriétaires sont généralement testés et optimisés pour Linux, ce qui assure une compatibilité maximale.
+
+7. Préparation au monde professionnel 🚀🏢
+
+- La pratique sur VM Ubuntu reflète de réels environnements de production Linux, où les administrateurs mettent en place des stratégies de sauvegarde et de restauration.
+
+- Les compétences acquises sont directement transférables à des infrastructures physiques ou cloud, ce qui est un vrai atout pour la formation.
+
+💡 Conclusion :
+L’utilisation de VM Ubuntu combine sécurité 🔒, flexibilité 🛠️, reproductibilité 🔄 et accessibilité 🌐. C’est un choix idéal pour un projet pédagogique sur la sauvegarde et la restauration, permettant aux étudiants de manipuler des systèmes complets et de tester différentes stratégies sans risque pour le matériel ou les données réelles.
 
 ### Plan de structures 
 ```
@@ -281,3 +294,136 @@ Ainsi :
 Adaptateur 1 = Internet
 
 Adaptateur 2 = Réseau interne du projet
+
+
+
+### Faire des backup entre deux vm ###
+
+1️⃣ Préparer la VM de backup
+Mettre à jour le système :
+```
+sudo apt update && sudo apt upgrade -y
+```
+2️⃣ Installer BorgBackup
+```
+sudo apt install borgbackup -y
+```
+Vérifie la version :
+```
+borg --version
+```
+3️⃣ Créer un utilisateur pour les backups
+
+C’est une bonne pratique pour la sécurité :
+```
+sudo adduser --system --group borgbackup
+sudo mkdir -p /srv/borg-repo
+sudo chown borgbackup:borgbackup /srv/borg-repo
+```
+
+/srv/borg-repo = emplacement où les backups seront stockés
+
+4️⃣ Initialiser le dépôt Borg
+
+Connecte-toi en tant qu’utilisateur borgbackup ou utilise sudo -u borgbackup :
+```
+sudo -u borgbackup borg init --encryption=repokey /srv/borg-repo
+```
+
+--encryption=repokey → chiffré avec la clé stockée dans le repo
+
+Borg va créer le dépôt initial
+
+5️⃣ Préparer l’accès SSH depuis le serveur principal
+
+Pour que le serveur principal puisse envoyer des backups automatiquement :
+
+Sur le serveur principal :
+```
+ssh-keygen -t ed25519 -C "backup-key" -f ~/.ssh/id_borgbackup
+```
+
+Copier la clé publique vers la VM backup :
+```
+ssh-copy-id -i ~/.ssh/id_borgbackup.pub borgbackup@192.168.x.y
+```
+
+192.168.x.y = IP de ta VM backup sur le réseau interne
+
+L’utilisateur distant = borgbackup
+
+6️⃣ Tester l’accès SSH
+
+Depuis le serveur principal :
+```
+ssh -i ~/.ssh/id_borgbackup borgbackup@192.168.x.y
+```
+
+Tu dois arriver sur la VM de backup sans mot de passe
+
+Vérifie que l’utilisateur borgbackup peut accéder au dépôt /srv/borg-repo
+
+7️⃣ Créer un premier backup manuel (test)
+
+Depuis le serveur principal :
+```
+export BORG_RSH="ssh -i ~/.ssh/id_borgbackup"
+borg create borgbackup@192.168.x.y:/srv/borg-repo::test-backup ~/  # exemple : backup du home
+```
+
+- ::test-backup → nom du snapshot
+
+- ~/ → dossier à sauvegarder (tu pourras mettre /etc, /var/lib/docker/volumes, etc.)
+
+8️⃣ Automatiser avec un script
+
+Exemple /usr/local/bin/backup.sh sur le serveur principal :
+```
+#!/bin/bash
+export BORG_RSH="ssh -i ~/.ssh/id_borgbackup"
+BACKUP_DIRS="/etc /var/lib/docker/volumes /home"
+borg create borgbackup@192.168.10.12:/srv/borg-repo::$(date +%Y-%m-%d) $BACKUP_DIRS
+borg prune -v --keep-daily=7 --keep-weekly=4 --keep-monthly=3 borgbackup@192.168.10.12:/srv/borg-repo
+```
+
+Prune = supprime les snapshots anciens selon ta politique
+
+Mets le script exécutable :
+```
+chmod +x /usr/local/bin/backup.sh
+```
+
+Teste-le :
+```
+/usr/local/bin/backup.sh
+```
+9️⃣ Planification automatique (cron)
+
+Exemple pour un backup quotidien à 2h00 du matin :
+```
+sudo crontab -e
+```
+
+Ajouter la ligne :
+```
+0 2 * * * /usr/local/bin/backup.sh >> /var/log/borgbackup.log 2>&1
+```
+
+Les logs sont conservés dans /var/log/borgbackup.log
+
+🔟 Restauration d’un backup (test)
+
+Depuis la VM backup ou le serveur principal :
+```
+borg list borgbackup@192.168.10.12:/srv/borg-repo   # voir les snapshots
+borg extract borgbackup@192.168.10.12:/srv/borg-repo::2025-12-05 /restore/path
+```
+
+/restore/path = chemin temporaire pour vérifier que les fichiers sont corrects
+
+✅ Résultat attendu :
+
+- Le serveur principal peut sauvegarder automatiquement vers la VM backup
+- Tu peux restaurer rapidement
+- Tout est isolé sur le réseau interne (host-only)
+- Prépare parfaitement ton projet pour la partie sauvegarde et restauration de l’énoncé
