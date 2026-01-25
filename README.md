@@ -334,7 +334,7 @@ sudo nft -f /etc/nftables.conf
 sudo nft list ruleset
 ```
 
-## 2 ➡️ SRV-CORE ( AIDEZ MOI YA MATHIS QUI FAIT DES MEUTRES PENDANT QUE JE TRAVAILLE )
+## 2 ➡️ SRV-CORE 
 
 Utile
 ```
@@ -580,36 +580,58 @@ sudo nano /usr/local/bin/backup_core.sh
 ```
 #!/bin/bash
 
-# Variables
+# ==============================================================================
+# SCRIPT DE SAUVEGARDE AUTOMATISÉE - SRV-BACKUP
+# Cible : SRV-CORE (192.168.10.69)
+# ==============================================================================
+
+# 1. Variables de configuration
 SRC_USER="mael"
 SRC_HOST="192.168.10.69"
-SRC_DIRS="/home /var/www"
+# On ajoute les configs DNS et Nginx pour un backup complet
+SRC_DIRS="/home /var/www /etc/bind /etc/nginx"
 DEST_DIR="/backup/core"
-LOGFILE="/var/log/backup_core_$(date +%F).log"
+DATE_SUFFIX=$(date +%F)
+LOGFILE="/var/log/backup_core_${DATE_SUFFIX}.log"
 RETENTION_DAYS=7
-EXCLUDE="--exclude='*.log' --exclude='*cache*'"
+EXCLUDE="--exclude='*.log' --exclude='*cache*' --exclude='node_modules'"
 
-# Créer le dossier de destination si nécessaire
+# 2. Création du dossier de destination et du log
 mkdir -p "$DEST_DIR"
+echo "--- Début de la sauvegarde le $(date) ---" > "$LOGFILE"
 
-# Fonction pour envoyer un mail en cas d'erreur
+# 3. Fonction pour envoyer un mail en cas d'erreur (Nécessite mailutils)
 send_mail() {
-    echo -e "Erreur lors du backup de SRV-CORE" | mail -s "Backup SRV-CORE échoué" ton.email@exemple.com
+    echo -e "Erreur lors du backup de SRV-CORE le $(date)" | mail -s "🚨 ALERT: Backup FAILED" mael@entreprise.local
 }
 
-# Backup avec rsync
+# 4. Exécution du backup avec rsync
+# -a : mode archive (conserve droits/dates)
+# -v : verbeux
+# -z : compression pendant le transfert
+# -R : CONSERVE L'ARBORESCENCE RELATIVE (ex: /backup/core/etc/bind/...)
+# --delete : supprime sur la destination les fichiers disparus à la source
+echo "Transfert en cours..." >> "$LOGFILE"
+
 for DIR in $SRC_DIRS; do
-    rsync -avz --delete $EXCLUDE -e "ssh" "$SRC_USER@$SRC_HOST:$DIR" "$DEST_DIR" >> "$LOGFILE" 2>&1
+    echo "Sauvegarde du répertoire : $DIR" >> "$LOGFILE"
+    rsync -avzR --delete $EXCLUDE -e "ssh" "$SRC_USER@$SRC_HOST:$DIR" "$DEST_DIR" >> "$LOGFILE" 2>&1
+    
     if [ $? -ne 0 ]; then
-        send_mail
+        echo "❌ ERREUR détectée sur $DIR" >> "$LOGFILE"
+        # send_mail  # Décommente cette ligne si mailutils est configuré
+    else
+        echo "✅ Succès pour $DIR" >> "$LOGFILE"
     fi
 done
 
-# Supprimer les backups plus anciens que RETENTION_DAYS
-find "$DEST_DIR" -type f -mtime +$RETENTION_DAYS -exec rm -f {} \;
+# 5. Nettoyage de la rétention (Supprime les fichiers vieux de plus de 7 jours)
+echo "Nettoyage des anciens fichiers (Rétention: $RETENTION_DAYS jours)..." >> "$LOGFILE"
+find "$DEST_DIR" -type f -mtime +$RETENTION_DAYS -delete
+# Supprime les dossiers vides
 find "$DEST_DIR" -type d -empty -delete
 
-echo "Backup terminé le $(date)" >> "$LOGFILE"
+echo "--- Sauvegarde terminée le $(date) ---" >> "$LOGFILE"
 
 ```
 
