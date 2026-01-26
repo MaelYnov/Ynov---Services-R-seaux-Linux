@@ -52,13 +52,15 @@ Docker et Docker Compose fonctionnent parfaitement pour déployer vos services.
 
 ## Rôles :
 
-- DNS interne (Bind9) -
+- DNS interne (Bind9) +
 
 - Serveur web HTTPS (Nginx) + 
 
 - Serveur complémentaire : Nextcloud +
 
 - Accès SSH +
+
+- Graphana et promete +
 
 - IP : 192.168.10.69
 
@@ -74,7 +76,7 @@ Docker et Docker Compose fonctionnent parfaitement pour déployer vos services.
 
 - Script de sauvegarde automatisé (cron) +
 
-- Système de restauration fonctionnel -+
+- Système de restauration fonctionnel +
 
 - IP : 192.168.10.73
 
